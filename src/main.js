@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls }  from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader }     from 'three/addons/loaders/GLTFLoader.js';
 import { GLTFExporter }   from 'three/addons/exporters/GLTFExporter.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass }     from 'three/addons/postprocessing/RenderPass.js';
@@ -145,7 +146,9 @@ async function init() {
   const cloudElevation    = $('cloudElevation');
   const cloudElevDisp     = $('cloudElevationDisplay');
   const genBtn            = $('generate');
+  const blankBtn          = $('blank');
   const exportBtn         = $('export');
+  const importBtn         = $('import');
 
   gridSlider.addEventListener('input', () => {
     gridDisplay.textContent = `${gridSlider.value}×${gridSlider.value}`;
@@ -185,14 +188,48 @@ async function init() {
     fitCamera(camera, controls, size);
   });
 
-  // Export
+  blankBtn.addEventListener('click', () => {
+    editor.deselect();
+    editor.clearPreview();
+    editor.clearHistory();
+    assetPanel.clearSelection();
+    const size = parseInt(gridSlider.value);
+    grid.options.rows = size;
+    grid.options.cols = size;
+    grid.generateBlank();
+    fitCamera(camera, controls, size);
+  });
+
+  // Export / Import
   const exporter = new GLTFExporter();
+  const loader   = new GLTFLoader();
   exportBtn.addEventListener('click', () => {
     exportBtn.textContent = 'Exporting…';
     exportBtn.disabled = true;
+
+    // Embed editor state as GLTF extras
+    const cells = [];
+    for (const cell of grid.hexMap.values()) {
+      cells.push({
+        r: cell.r, c: cell.c,
+        elev: cell.elev, rotation: cell.rotation,
+        baseKey:  cell.baseKey,
+        topKey:   cell.topKey   ?? null,
+        cloudKey: cell.cloudKey ?? null,
+      });
+    }
+    grid.group.userData.hexmapSave = JSON.stringify({
+      v: 1,
+      options: { rows: grid.options.rows, cols: grid.options.cols },
+      cells,
+    });
+
+    const cleanup = () => { delete grid.group.userData.hexmapSave; };
+
     exporter.parse(
       grid.group,
       (glb) => {
+        cleanup();
         const a = Object.assign(document.createElement('a'), {
           href: URL.createObjectURL(new Blob([glb], { type: 'application/octet-stream' })),
           download: `hexmap_seed${grid.options.seed}.glb`,
@@ -202,9 +239,59 @@ async function init() {
         exportBtn.textContent = 'Export .glb';
         exportBtn.disabled = false;
       },
-      (err) => { console.error(err); exportBtn.textContent = 'Export .glb'; exportBtn.disabled = false; },
+      (err) => { cleanup(); console.error(err); exportBtn.textContent = 'Export .glb'; exportBtn.disabled = false; },
       { binary: true }
     );
+  });
+
+  importBtn.addEventListener('click', () => {
+    const input = Object.assign(document.createElement('input'), { type: 'file', accept: '.glb' });
+    input.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      importBtn.textContent = 'Importing…';
+      importBtn.disabled = true;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        loader.parse(ev.target.result, '', (gltf) => {
+          let raw = null;
+          gltf.scene.traverse(obj => {
+            if (!raw && obj.userData.hexmapSave) raw = obj.userData.hexmapSave;
+          });
+          if (!raw) {
+            alert('Not a hex map file — missing save data.');
+            importBtn.textContent = 'Import .glb';
+            importBtn.disabled = false;
+            return;
+          }
+          const save = JSON.parse(raw);
+          if (save.v !== 1) {
+            alert('Incompatible hex map version.');
+            importBtn.textContent = 'Import .glb';
+            importBtn.disabled = false;
+            return;
+          }
+          editor.deselect();
+          editor.clearPreview();
+          editor.clearHistory();
+          assetPanel.clearSelection();
+          grid.loadSave(save);
+          const size = save.options?.rows ?? grid.options.rows;
+          gridSlider.value = size;
+          gridDisplay.textContent = `${size}×${size}`;
+          fitCamera(camera, controls, size);
+          importBtn.textContent = 'Import .glb';
+          importBtn.disabled = false;
+        }, (err) => {
+          console.error(err);
+          alert('Failed to parse GLB.');
+          importBtn.textContent = 'Import .glb';
+          importBtn.disabled = false;
+        });
+      };
+      reader.readAsArrayBuffer(file);
+    });
+    input.click();
   });
 
   // --- Resize ---

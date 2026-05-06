@@ -230,6 +230,54 @@ export class HexGrid {
     this.setRotation(snap.r, snap.c, snap.rotation);
   }
 
+  /** Generate a blank grid — all hex_grass, flat elev 0, no props or clouds. */
+  generateBlank() {
+    this.group.clear();
+    this.hexMap.clear();
+    this._initSpacing();
+
+    const { rows, cols } = this.options;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        this.placeBase(r, c, 'hex_grass', 0);
+      }
+    }
+
+    const center = new THREE.Box3().setFromObject(this.group).getCenter(new THREE.Vector3());
+    this.group.position.set(-center.x, 0, -center.z);
+  }
+
+  /** Restore a map from a save object produced by serializeHexMap(). */
+  loadSave(save) {
+    this.group.clear();
+    this.hexMap.clear();
+    this._initSpacing();
+
+    if (save.options) Object.assign(this.options, save.options);
+
+    for (const { r, c, elev, rotation, baseKey, topKey, cloudKey } of save.cells) {
+      this.placeBase(r, c, baseKey, elev);
+      if (topKey)   this.placeTop(r, c, topKey);
+      if (cloudKey) this.placeCloud(r, c, cloudKey);
+      if (rotation) this.setRotation(r, c, rotation);
+    }
+
+    const center = new THREE.Box3().setFromObject(this.group).getCenter(new THREE.Vector3());
+    this.group.position.set(-center.x, 0, -center.z);
+  }
+
+  // ---- internal helpers ----
+
+  _initSpacing() {
+    const ref = this.library['hex_grass'];
+    if (!ref) { console.error('hex_grass blueprint missing'); return; }
+    const ts = new THREE.Vector3();
+    new THREE.Box3().setFromObject(ref).getSize(ts);
+    this.colSpacing   = ts.x;
+    this.rowSpacing   = ts.z * 0.75;
+    this.oddRowOffset = ts.x * 0.5;
+  }
+
   /** Convert a world-space point to the nearest hex (r, c). */
   worldToHex(worldX, worldZ) {
     const lx = worldX - this.group.position.x;
@@ -251,14 +299,8 @@ export class HexGrid {
     const noise2D = createNoise2D(mulberry32(seed));
     const rng     = mulberry32(seed + 99999);
 
-    const ref = this.library['hex_grass'];
-    if (!ref) { console.error('hex_grass blueprint missing'); return; }
-    const ts = new THREE.Vector3();
-    new THREE.Box3().setFromObject(ref).getSize(ts);
-
-    this.colSpacing   = ts.x;
-    this.rowSpacing   = ts.z * 0.75;
-    this.oddRowOffset = ts.x * 0.5;
+    this._initSpacing();
+    if (!this.colSpacing) return;
 
     // Noise → raw cells
     const elevBand = (1.0 - waterLine) / 4;
