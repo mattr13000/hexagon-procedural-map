@@ -2,25 +2,29 @@ import manifest from './assets_manifest.json';
 
 // Per-category badge colours
 const CAT_COLOR = {
-  base:            '#6b7280',
-  coast:           '#0d9488',
-  'coast/waterless': '#0d9488',
-  rivers:          '#2563eb',
+  base:               '#6b7280',
+  coast:              '#0d9488',
+  'coast/waterless':  '#0d9488',
+  rivers:             '#2563eb',
   'rivers/waterless': '#2563eb',
-  roads:           '#92400e',
-  nature:          '#16a34a',
-  blue:            '#3b82f6',
-  green:           '#22c55e',
-  red:             '#ef4444',
-  yellow:          '#eab308',
-  neutral:         '#9ca3af',
+  roads:              '#92400e',
+  nature:             '#16a34a',
+  'buildings/blue':   '#3b82f6',
+  'buildings/green':  '#22c55e',
+  'buildings/red':    '#ef4444',
+  'buildings/yellow': '#eab308',
+  'buildings/neutral':'#9ca3af',
 };
 
 // Human-readable category labels
 const CAT_LABEL = {
   base: 'Base', coast: 'Coast', rivers: 'Rivers', roads: 'Roads',
-  nature: 'Nature', blue: 'Blue', green: 'Green', red: 'Red',
-  yellow: 'Yellow', neutral: 'Neutral',
+  nature: 'Nature',
+  'buildings/blue':    'Blue',
+  'buildings/green':   'Green',
+  'buildings/red':     'Red',
+  'buildings/yellow':  'Yellow',
+  'buildings/neutral': 'Neutral',
 };
 
 export class AssetPanel {

@@ -115,10 +115,8 @@ export class HexGrid {
     if (obj) this.group.remove(obj);
   }
 
-  _topY(cell, key) {
-    const baseY = cell.elev * 0.5;
-    return baseY + (isCloudKey(key) ? this.options.cloudElevation : 0);
-  }
+  _topY(cell)   { return cell.elev * 0.5; }
+  _cloudY(cell) { return cell.elev * 0.5 + this.options.cloudElevation; }
 
   // ---- public editing API ----
 
@@ -133,20 +131,23 @@ export class HexGrid {
       cell.baseKey = key;
       cell.elev    = elev;
     } else {
-      cell = { r, c, posX: x, posZ: z, elev, rotation: 0, baseKey: key, baseObj: null, topKey: null, topObj: null };
+      cell = {
+        r, c, posX: x, posZ: z, elev, rotation: 0,
+        baseKey: key, baseObj: null,
+        topKey: null,   topObj: null,
+        cloudKey: null, cloudObj: null,
+      };
       this.hexMap.set(hk, cell);
     }
 
     cell.baseObj = this._makeObj(key, x, cell.elev * 0.5, z, hk, cell.rotation);
 
-    // Reposition top to match new elev
-    if (cell.topObj) {
-      cell.topObj.position.y = this._topY(cell, cell.topKey);
-    }
+    if (cell.topObj)   cell.topObj.position.y   = this._topY(cell);
+    if (cell.cloudObj) cell.cloudObj.position.y = this._cloudY(cell);
     return cell;
   }
 
-  /** Place (or replace) the top slot on an existing hex. Auto-creates hex_grass if hex doesn't exist. */
+  /** Place (or replace) the top slot. Auto-creates hex_grass if cell doesn't exist. */
   placeTop(r, c, key) {
     const hk = this._key(r, c);
     if (!this.hexMap.has(hk)) this.placeBase(r, c, 'hex_grass', 0);
@@ -154,7 +155,19 @@ export class HexGrid {
     this._removeObj(cell.topObj);
     const { x, z } = this._localPos(r, c);
     cell.topKey = key;
-    cell.topObj = this._makeObj(key, x, this._topY(cell, key), z, hk, cell.rotation);
+    cell.topObj = this._makeObj(key, x, this._topY(cell), z, hk, cell.rotation);
+    return cell;
+  }
+
+  /** Place (or replace) the cloud slot. Auto-creates hex_grass if cell doesn't exist. */
+  placeCloud(r, c, key) {
+    const hk = this._key(r, c);
+    if (!this.hexMap.has(hk)) this.placeBase(r, c, 'hex_grass', 0);
+    const cell = this.hexMap.get(hk);
+    this._removeObj(cell.cloudObj);
+    const { x, z } = this._localPos(r, c);
+    cell.cloudKey = key;
+    cell.cloudObj = this._makeObj(key, x, this._cloudY(cell), z, hk, cell.rotation);
     return cell;
   }
 
@@ -166,12 +179,21 @@ export class HexGrid {
     cell.topObj = null;
   }
 
+  removeCloud(r, c) {
+    const cell = this.hexMap.get(this._key(r, c));
+    if (!cell) return;
+    this._removeObj(cell.cloudObj);
+    cell.cloudKey = null;
+    cell.cloudObj = null;
+  }
+
   removeHex(r, c) {
     const hk   = this._key(r, c);
     const cell = this.hexMap.get(hk);
     if (!cell) return;
     this._removeObj(cell.baseObj);
     this._removeObj(cell.topObj);
+    this._removeObj(cell.cloudObj);
     this.hexMap.delete(hk);
   }
 
@@ -179,9 +201,9 @@ export class HexGrid {
     const cell = this.hexMap.get(this._key(r, c));
     if (!cell) return;
     cell.elev = Math.max(0, Math.min(3, elev));
-    const y = cell.elev * 0.5;
-    if (cell.baseObj) cell.baseObj.position.y = y;
-    if (cell.topObj)  cell.topObj.position.y  = this._topY(cell, cell.topKey);
+    if (cell.baseObj)  cell.baseObj.position.y  = cell.elev * 0.5;
+    if (cell.topObj)   cell.topObj.position.y   = this._topY(cell);
+    if (cell.cloudObj) cell.cloudObj.position.y = this._cloudY(cell);
   }
 
   setRotation(r, c, steps) {
@@ -189,8 +211,23 @@ export class HexGrid {
     if (!cell) return;
     cell.rotation = ((steps % 6) + 6) % 6;
     const rad = cell.rotation * (Math.PI / 3);
-    if (cell.baseObj) cell.baseObj.rotation.y = rad;
-    if (cell.topObj)  cell.topObj.rotation.y  = rad;
+    if (cell.baseObj)  cell.baseObj.rotation.y  = rad;
+    if (cell.topObj)   cell.topObj.rotation.y   = rad;
+    if (cell.cloudObj) cell.cloudObj.rotation.y = rad;
+  }
+
+  /** Restore a cell from a snapshot created by Editor._snapshotCell. */
+  restoreCell(snap) {
+    if (!snap.exists) {
+      if (this.hexMap.has(snap.hk)) this.removeHex(snap.r, snap.c);
+      return;
+    }
+    this.placeBase(snap.r, snap.c, snap.baseKey, snap.elev);
+    if (snap.topKey)   this.placeTop(snap.r, snap.c, snap.topKey);
+    else               this.removeTop(snap.r, snap.c);
+    if (snap.cloudKey) this.placeCloud(snap.r, snap.c, snap.cloudKey);
+    else               this.removeCloud(snap.r, snap.c);
+    this.setRotation(snap.r, snap.c, snap.rotation);
   }
 
   /** Convert a world-space point to the nearest hex (r, c). */
@@ -263,20 +300,26 @@ export class HexGrid {
         const { water, elev } = raw[r][c];
         const baseKey = water ? 'hex_water' : 'hex_grass';
 
-        // Creates cell + places base object
         this.placeBase(r, c, baseKey, elev);
         const cell = this.hexMap.get(this._key(r, c));
+        const hk   = this._key(r, c);
+        const { x, z } = this._localPos(r, c);
 
-        // Top slot: first matching density roll wins
+        // Top slot: water props or land props
         let topKey = null;
-        if (water && waterProps.length && rng() < waterPropDensity)  topKey = pick(waterProps);
-        else if (!water && landProps.length && rng() < landPropDensity) topKey = pick(landProps);
-        else if (cloudProps.length && rng() < cloudDensity)            topKey = pick(cloudProps);
+        if (water && waterProps.length && rng() < waterPropDensity)       topKey = pick(waterProps);
+        else if (!water && landProps.length && rng() < landPropDensity)    topKey = pick(landProps);
 
         if (topKey) {
-          const { x, z } = this._localPos(r, c);
           cell.topKey = topKey;
-          cell.topObj = this._makeObj(topKey, x, this._topY(cell, topKey), z, this._key(r, c), 0);
+          cell.topObj = this._makeObj(topKey, x, this._topY(cell), z, hk, 0);
+        }
+
+        // Cloud slot: independent roll
+        if (cloudProps.length && rng() < cloudDensity) {
+          const cloudKey = pick(cloudProps);
+          cell.cloudKey = cloudKey;
+          cell.cloudObj = this._makeObj(cloudKey, x, this._cloudY(cell), z, hk, 0);
         }
       }
     }

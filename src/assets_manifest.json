@@ -117,7 +117,7 @@
             "waterplant_B.gltf",
             "waterplant_C.gltf"
         ],
-        "blue": [
+        "buildings/blue": [
             "building_archeryrange_blue.gltf",
             "building_barracks_blue.gltf",
             "building_blacksmith_blue.gltf",
@@ -137,7 +137,7 @@
             "building_well_blue.gltf",
             "building_windmill_blue.gltf"
         ],
-        "green": [
+        "buildings/green": [
             "building_archeryrange_green.gltf",
             "building_barracks_green.gltf",
             "building_blacksmith_green.gltf",
@@ -157,7 +157,7 @@
             "building_well_green.gltf",
             "building_windmill_green.gltf"
         ],
-        "neutral": [
+        "buildings/neutral": [
             "building_bridge_A.gltf",
             "building_bridge_B.gltf",
             "building_destroyed.gltf",
@@ -180,7 +180,7 @@
             "wall_straight.gltf",
             "wall_straight_gate.gltf"
         ],
-        "red": [
+        "buildings/red": [
             "building_archeryrange_red.gltf",
             "building_barracks_red.gltf",
             "building_blacksmith_red.gltf",
@@ -200,7 +200,7 @@
             "building_well_red.gltf",
             "building_windmill_red.gltf"
         ],
-        "yellow": [
+        "buildings/yellow": [
             "building_archeryrange_yellow.gltf",
             "building_barracks_yellow.gltf",
             "building_blacksmith_yellow.gltf",

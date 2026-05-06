@@ -2,14 +2,14 @@ import { categoryOf } from './HexGrid.js';
 
 const CAT_COLOR = {
   base:'#6b7280', coast:'#0d9488', rivers:'#2563eb', roads:'#92400e',
-  nature:'#16a34a', blue:'#3b82f6', green:'#22c55e', red:'#ef4444',
-  yellow:'#eab308', neutral:'#9ca3af',
+  nature:'#16a34a', 'buildings/blue':'#3b82f6', 'buildings/green':'#22c55e',
+  'buildings/red':'#ef4444', 'buildings/yellow':'#eab308', 'buildings/neutral':'#9ca3af',
 };
 
 export class DetailPanel {
   constructor(container) {
     this.container = container;
-    this._editor   = null; // set after Editor is created
+    this._editor   = null;
     container.style.display = 'none';
   }
 
@@ -29,14 +29,21 @@ export class DetailPanel {
 
   _render(cell) {
     const rotDeg = cell.rotation * 60;
+
     const topHtml = cell.topKey
       ? `${this._badge(cell.topKey)}
          <button class="detail-btn danger" id="removePropBtn">Remove prop</button>`
       : `<span class="detail-empty">— empty —</span>`;
 
+    const cloudHtml = cell.cloudKey
+      ? `${this._badge(cell.cloudKey)}
+         <button class="detail-btn danger" id="removeCloudBtn">Remove cloud</button>`
+      : `<span class="detail-empty">— empty —</span>`;
+
     this.container.innerHTML = `
       <div class="detail-row">${this._badge(cell.baseKey)}</div>
       <div class="detail-row">${topHtml}</div>
+      <div class="detail-row">${cloudHtml}</div>
       <div class="detail-row detail-row--spread">
         <span class="detail-label">Height</span>
         <div class="detail-stepper">
@@ -56,11 +63,12 @@ export class DetailPanel {
       <button class="detail-btn danger" id="removeHexBtn">Remove hex</button>
     `;
 
-    this.container.querySelector('#elevDown')    ?.addEventListener('click', () => this._editor?.adjustElev(-1));
-    this.container.querySelector('#elevUp')      ?.addEventListener('click', () => this._editor?.adjustElev(1));
-    this.container.querySelector('#rotLeft')     ?.addEventListener('click', () => this._editor?.adjustRotation(-1));
-    this.container.querySelector('#rotRight')    ?.addEventListener('click', () => this._editor?.adjustRotation(1));
-    this.container.querySelector('#removePropBtn')?.addEventListener('click', () => this._editor?.removeProp());
-    this.container.querySelector('#removeHexBtn') ?.addEventListener('click', () => this._editor?.removeHex());
+    this.container.querySelector('#elevDown')      ?.addEventListener('click', () => this._editor?.adjustElev(-1));
+    this.container.querySelector('#elevUp')        ?.addEventListener('click', () => this._editor?.adjustElev(1));
+    this.container.querySelector('#rotLeft')       ?.addEventListener('click', () => this._editor?.adjustRotation(-1));
+    this.container.querySelector('#rotRight')      ?.addEventListener('click', () => this._editor?.adjustRotation(1));
+    this.container.querySelector('#removePropBtn') ?.addEventListener('click', () => this._editor?.removeProp());
+    this.container.querySelector('#removeCloudBtn')?.addEventListener('click', () => this._editor?.removeCloud());
+    this.container.querySelector('#removeHexBtn')  ?.addEventListener('click', () => this._editor?.removeHex());
   }
 }

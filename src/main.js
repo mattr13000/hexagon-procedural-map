@@ -81,6 +81,15 @@ async function init() {
   outlineErase.hiddenEdgeColor.set('#7f1d1d');
   composer.addPass(outlineErase);
 
+  const outlineHover = new OutlinePass(
+    new THREE.Vector2(viewport.clientWidth, viewport.clientHeight), scene, camera
+  );
+  outlineHover.edgeStrength   = 4;
+  outlineHover.edgeThickness  = 1;
+  outlineHover.visibleEdgeColor.set('#44ff88');
+  outlineHover.hiddenEdgeColor.set('#1a5c33');
+  composer.addPass(outlineHover);
+
   composer.addPass(new OutputPass());
 
   // --- Assets ---
@@ -116,6 +125,7 @@ async function init() {
   const syncOutlines = () => {
     outlineSelect.selectedObjects = editor.selectObjects;
     outlineErase.selectedObjects  = editor.eraseObjects;
+    outlineHover.selectedObjects  = editor.hoverObjects;
   };
 
   // --- UI helpers ---
@@ -158,6 +168,8 @@ async function init() {
 
   genBtn.addEventListener('click', () => {
     editor.deselect();
+    editor.clearPreview();
+    editor.clearHistory();
     assetPanel.clearSelection();
     const size = parseInt(gridSlider.value);
     Object.assign(grid.options, {
@@ -204,6 +216,7 @@ async function init() {
     composer.setSize(w, h);
     outlineSelect.setSize(w, h);
     outlineErase.setSize(w, h);
+    outlineHover.setSize(w, h);
   };
   window.addEventListener('resize', onResize);
 
