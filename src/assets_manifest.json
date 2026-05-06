@@ -1,5 +1,5 @@
 {
-    "basePath": "/tiles/",
+    "basePath": "./tiles/",
     "categories": {
         "base": [
             "hex_grass.gltf",
