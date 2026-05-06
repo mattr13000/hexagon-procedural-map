@@ -11,6 +11,7 @@ import { HexGrid }        from './HexGrid.js';
 import { Editor }         from './Editor.js';
 import { AssetPanel }     from './AssetPanel.js';
 import { DetailPanel }    from './DetailPanel.js';
+import { HudOverlay }    from './HudOverlay.js';
 
 async function init() {
   const viewport = document.getElementById('viewport');
@@ -107,6 +108,9 @@ async function init() {
   // --- Panels ---
   const detailPanel = new DetailPanel(document.getElementById('detail'));
   const assetPanel  = new AssetPanel(document.getElementById('asset-panel'), library);
+
+  // --- HUD ---
+  const hud = new HudOverlay(viewport);
 
   // --- Editor ---
   const editor = new Editor(renderer, camera, grid, assetPanel, detailPanel);
@@ -312,6 +316,7 @@ async function init() {
     controls.update();
     syncOutlines();
     composer.render();
+    hud.update(camera, controls);
   });
 }
 
